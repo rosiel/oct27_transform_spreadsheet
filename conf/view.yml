@@ -1,0 +1,7 @@
+name: view
+row_type: view
+version: 0.02
+fields:
+  file: FILENAME ## MUST BE ON TOP TO ADD .JPG extension
+  node_id: OBJECT
+

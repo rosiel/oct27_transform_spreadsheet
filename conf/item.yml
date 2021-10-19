@@ -1,0 +1,21 @@
+name: item
+row_type: item
+version: 0.02
+fields:
+  name: 'TITLE'
+  field_creator_1: 'CREATOR 1'
+  field_creator_2: 'CREATOR 2'
+  field_creator_3: 'CREATOR 3'
+  field_date: 'DATE'
+  field__item_donor: DONOR
+  field_event: 'EVENT'
+  field_historical_note: 'HISTORICAL NOTE'
+  field_description: DESCRIPTION
+  field_item_id: ITEM
+  field_language: 'LANGUAGE'
+  field_location: 'LOCATION'
+  field_collection: 'COLLECTION'
+  field_parent_group: 'GROUP'
+  field_primary_type: 'PRIMARY TYPE'
+  field_secondary_type: 'SECONDARY TYPE'
+  field_subject: SUBJECTS

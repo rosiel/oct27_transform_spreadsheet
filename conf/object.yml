@@ -1,0 +1,30 @@
+name: object
+row_type: object
+version: 0.02
+fields:
+  id: OBJECT
+  title: TITLE
+  field_description: DESCRIPTION
+  field_parent_collection: COLLECTION
+  field_creator: 'CREATOR 1'
+  field_creator_2: 'CREATOR 2'
+  field_creator_3: 'CREATOR 3'
+  field_donor: 'DONOR'
+  field_dimensions: 'DIMENSIONS'
+  field_event: 'EVENT'
+  field_historical_note: 'HISTORICAL NOTE'
+  field_item_date: 'DATE'
+  field__language: 'LANGUAGE'
+  field_location: 'LOCATION'
+  field_object_identifier: 'OBJECT'
+  field_parent_archival_item: 'ITEM'
+  field_parent_collection: 'COLLECTION'
+  field_parent_group: 'GROUP'
+  field_primary_type: 'PRIMARY TYPE'
+  field_recipient: 'RECIPIENT'
+  field_secondary_type: 'SECONDARY TYPE'
+  field_subject_1: 'SUBJECTS'
+  field_transcript: 'TRANSCRIPT'
+  #field_archive_it_collection_id
+  #field_archive_it_url
+

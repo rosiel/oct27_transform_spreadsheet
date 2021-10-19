@@ -1,0 +1,10 @@
+name: name
+row_type: all
+version: 0.02
+fields:
+  'CREATOR 1': 'CREATOR 1'
+  'CREATOR 1 KEY': 'CREATOR 1 KEY'
+  'CREATOR 2': 'CREATOR 2'
+  'CREATOR 2 KEY': 'CREATOR 2 KEY'
+  'CREATOR 3': 'CREATOR 3'
+  'CREATOR 3 KEY': 'CREATOR 3'

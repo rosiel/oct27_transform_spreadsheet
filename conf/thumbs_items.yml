@@ -1,0 +1,7 @@
+name: thumbs_items
+row_type: item
+version: 0.02
+fields:
+  item_id: ITEM
+  thumbnail_file: FILENAME
+
