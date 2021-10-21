@@ -15,10 +15,13 @@ import sys
 
 def parse_cmd_line():
     parser = optparse.OptionParser(usage="%prog [options] INPUT_FILE")
-    parser.add_option("-t", "--type", dest="obj_type", default="all", help="Type to extract from spreadsheet. e.g. 'object'.")
+#    parser.add_option("-t", "--type", dest="obj_type", default="all", help="Type to extract from spreadsheet. e.g. 'object'.")
     parser.add_option("-o", "--output", dest="output", default="O27-transformed", help="basename of output filename.") 
     opts, args = parser.parse_args()
-    return opts.obj_type, opts.output, args
+
+    if len(args) < 1:
+        parser.error("Need at least one input file on command line.")
+    return opts.output, args
 
 def get_config(conf_type):
     ## Get the config for this type (object, view, item)
@@ -37,19 +40,24 @@ def get_config(conf_type):
 
 
 def main():
-    conf_type, output_basename, input_filenames = parse_cmd_line()
+    output_basename, input_filenames = parse_cmd_line()
 
-    configs = ['object', 'item', 'view', 'name', 'thumbs_objects', 'thumbs_items', 'custom']
-    if conf_type != 'all' and conf_type in configs:
-        configs = [conf_type]
+    configs = {
+        'object': '01-objects-to-ingest-with-workbench.csv',
+        'item': 'interim-items.csv',
+        'view': 'interim-views.csv',
+        'name', 'interim-names.csv',
+        'thumbs_objects': 'interim-thumbs-objects.csv',
+        'thumbs_items': 'interim-thumbs-items.csv',
+        'custom': 'interim-custom.csv'}
 
-    for config in configs:
+    for config in configs.keys:
         
         # Get config
         field_mapping, dest_fieldnames, config_name, row_type = get_config(config)
         
         # Open output file for this type.
-        output_filename = output_basename + '-' + config_name + '.csv'
+        output_filename = configs[config]
         with open(output_filename, 'w') as f:
             writer = csv.writer(f, delimiter=',')
             ## Write header
