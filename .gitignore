@@ -1,1 +1,6 @@
 *.csv
+*.prepocessed
+*.iml
+*.swp
+data/*
+[1-9]-*

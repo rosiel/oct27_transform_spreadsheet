@@ -4,4 +4,6 @@ version: 0.02
 fields:
   file: FILENAME ## MUST BE ON TOP TO ADD .JPG extension
   node_id: OBJECT
+  field_use_and_reproduction: "USE AND REPRODUCTION"
+  field_photo_credit: "PHOTO CREDIT"
 

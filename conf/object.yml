@@ -2,8 +2,9 @@ name: object
 row_type: object
 version: 0.02
 fields:
-  id: OBJECT
   title: TITLE
+  id: OBJECT
+  field_item_date: 'DATE'
   field_description: DESCRIPTION
   field_parent_collection: COLLECTION
   field_creator: 'CREATOR 1'
@@ -13,7 +14,6 @@ fields:
   field_dimensions: 'DIMENSIONS'
   field_event: 'EVENT'
   field_historical_note: 'HISTORICAL NOTE'
-  field_item_date: 'DATE'
   field__language: 'LANGUAGE'
   field_location: 'LOCATION'
   field_object_identifier: 'OBJECT'
