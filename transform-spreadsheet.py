@@ -10,6 +10,9 @@ import os
 import yaml
 import sys
 import edtf_validate.valid_edtf
+import requests
+import datetime
+from requests.auth import HTTPBasicAuth
 
 
 ## Run this script with an input file.
@@ -20,12 +23,6 @@ import edtf_validate.valid_edtf
 
 def parse_cmd_line():
     parser = optparse.OptionParser(usage="%prog [options] INPUT_FILE")
-#    parser.add_option("-t", "--type", dest="obj_type", default="all", help="Type to extract from spreadsheet. e.g. 'object'.")
-#    parser.add_option("-o", "--output", dest="output", default="O27-transformed", help="basename of output filename.")
-    parser.add_option("--object-index", dest="object_index", default="object_index.csv", 
-       help="path to an object index (csv with headers node_id, field_object_identifier)") 
-    parser.add_option("--media-index", dest="media_index", default="media_index.csv", help="path to a media index (csv with headers: filename, media_id)") 
-    parser.add_option("--item-index", dest="item_index", default="item_index.csv", help="path to a item index (csv with headers field_item_id, term_id).")
     parser.add_option("--data-dir", dest="data_dir", default = "data", help="path to directory containing files (\"Views\").")
     parser.add_option("--skip-file-check", dest="skip_file_check", action="store_true", default = False, help="path to directory containing files (\"Views\").")
     opts, args = parser.parse_args()
@@ -33,10 +30,23 @@ def parse_cmd_line():
     if len(args) < 1:
         parser.error("Need at least one input file on command line.")
 
-    return opts.object_index, opts.media_index, opts.item_index, opts.data_dir, opts.skip_file_check, args
+    return opts.data_dir, opts.skip_file_check, args
 
 def read_in_dict_file(filename, key_col, val_col, silent = False):
+    """
+    For csv file filename, create a dictionary where the
+    values in key_col point to their corresponding values
+    in val_col.
+
+    Will bark if key_col is blank or duplicate.
+    :param filename:
+    :param key_col:
+    :param val_col:
+    :param silent:
+    :return:
+    """
     data_dict = {}
+    key_errors = set()
     with open(filename, 'r') as f:
         reader = csv.DictReader(f, delimiter=',')
         row_count = 1
@@ -45,13 +55,26 @@ def read_in_dict_file(filename, key_col, val_col, silent = False):
             if row[key_col] == '':
                 if not silent:
                     print("NOTICE: Row [{}] in file [{}]: key column {} is blank. Skipping row.".format(row_count, filename, key_col))
+                key_errors.add("blanks")
                 continue
-            if row[key_col] in data_dict:
-                print("NOTICE: Row [{}] in file [{}]: overwriting existing entry: [{}, {}]".format(row_count, filename, row[key_col], data_dict[row[val_col]]))
+            if row[key_col] in data_dict.keys():
+                if not silent:
+                    print("NOTICE: Row [{}] in file [{}]: overwriting existing entry: [{}, {}]".format(row_count, filename, row[key_col], data_dict[row[key_col]]))
+                key_errors.add("dupes")
             data_dict[row[key_col]] = row[val_col]
-    return data_dict
+    return data_dict, key_errors
 
 def get_draft_items(filename, key_col, val_col, blank_col):
+    """
+    like read_in_dict_file but only gets values where blank_col is blank.
+    Useful after read_in_dict if there's a backup column when the original
+    key_col was blank.
+    :param filename:
+    :param key_col:
+    :param val_col:
+    :param blank_col:
+    :return:
+    """
     data_dict = {}
     with open(filename, 'r') as f:
         reader = csv.DictReader(f, delimiter=',')
@@ -60,47 +83,95 @@ def get_draft_items(filename, key_col, val_col, blank_col):
                 data_dict[row[key_col]] = row[val_col]
     return data_dict
 
-
-def get_drupal_lookups(objects_file, media_file, item_file):
+def get_drupal_lookups(objects_file, media_file, item_file, host = ''):
     if os.path.isfile(objects_file):
-        objects = read_in_dict_file(objects_file, "field_object_identifier", "node_id")
-        print("  Found existing objects: {}".format(len(objects)))
+        objects, key_errors = read_in_dict_file(objects_file, "field_object_identifier", "node_id")
+        if 'blanks' in key_errors:
+            print("ERROR in existing data: some objects are missing identifiers. Go here to fix:\n   {}/object-index".format(host))
+        if 'dupes' in key_errors:
+            print("ERROR in existing data: some objects have duplicate identifiers. Go here to fix:\n    {}/object-index".format(host))
+        else:
+            print("OK: Found {} objects.".format(len(objects)))
     else:
-        objects = {}
-        print("NOTICE: 'index' of drupal objects is not available. duplicates between new objects and existing objects will not be detected. Use --object-index to specify a file.")
+        raise FileNotFoundError
 
     if os.path.isfile(media_file):
-        media = read_in_dict_file(media_file, "filename", "media_id")
-        print("  Found existing media: {}".format(len(media)))
+        media, media_key_errors = read_in_dict_file(media_file, "filename", "media_id")
+        print("OK: found {} media.".format(len(media)))
     else:
-        media = {}
-        print("NOTICE: 'index' of drupal media is not available. duplicates between new Views and existing Views will not be detected. Use --media-index to specify a file.")
+        raise FileNotFoundError
+
     if os.path.isfile(item_file):
-        items = read_in_dict_file(item_file, "field_item_id", "term_id", silent=True)
+        items, item_key_errors = read_in_dict_file(item_file, "field_item_id", "term_id", silent=True)
         drafts = get_draft_items(item_file, "Name", "term_id", "field_item_id")
-        print("  Found existing completed items: {}".format(len(items)))
-        print("  Found existing draft items: {}".format(len(drafts)))
+        dupes = set(items.keys()).intersection(set(drafts.keys()))
+        if len(dupes) > 0:
+            print("ERROR: Item 'drafts' duplicate existing Items that aren't drafts. [{}]".format(dupes))
+
+        print("OK: Found existing completed items: {}".format(len(items)))
+        print("OK: Found existing draft items: {}".format(len(drafts)))
 
     else:
-        items = drafts = {}
-        print("NOTICE: 'index' of drupal items is not available. duplicates between new Items and existing Items will not be detected. Use --item-index to specify a file.")
+        raise FileNotFoundError
+
+    if len(key_errors) > 0 or len(media_key_errors) > 0 or ('dupes' in item_key_errors) or len(dupes) > 0:
+        raise ValueError("Drupal data contains inconsistencies. Identifiers should be unique.")
 
     return objects, media, items, drafts
 
-# FIXME - fewer things needed.
-def get_config(conf_type):
-    config_file = sys.path[0] + os.sep + 'conf' + os.sep + conf_type + '.yml'
-    with open(config_file, 'r') as stream:
+
+def read_in_yaml(filename):
+    with open(filename, 'r') as stream:
         try:
-            object_config = yaml.safe_load(stream)
-            field_mapping = object_config['fields']
-            dest_fieldnames = field_mapping.keys()
-            conf_type = object_config['name']
-            row_type = object_config['row_type']
-            return field_mapping, dest_fieldnames, conf_type, row_type
+            data = yaml.safe_load(stream)
+            return data
         except yaml.YAMLError as exc:
             print(exc)
-            exit(1)
+            raise
+
+def get_workbench_creds():
+    filename = 'conf' + os.sep + 'credentials.yml'
+    if not os.path.isfile(filename):
+        raise InputError("Config file not found at conf\credentials.yml.")
+    creds = read_in_yaml(filename)
+    if not (creds['host'] and creds['password'] and creds['username']):
+        raise ConnectionError("Credentials must contain host, password, and username.")
+    return creds
+
+class InputError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+class ValueError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+def update_csv_indexes(creds):
+    """
+
+    :param creds: workbench credentials dictionary containing username, password, host
+    :param path: path to a view that downloads csv
+    :return:
+    """
+    types = ['item','object','media']
+    for type in types:
+        url = creds['host']  + '/' + type + '-index/download'
+        response = requests.get(
+            url,
+            auth=(creds['username'], creds['password']),
+            headers={"Content-Type": "text/csv", "User-Agent": 'Islandora Workbench'}
+        )
+        if response.status_code == 200:
+            with open(type + '_index.csv', 'w') as f:
+                f.write(response.text)
+        else:
+            raise ConnectionError("Failed to get {} index at {}.".format(type, url))
+    return "object_index.csv", "media_index.csv", "item_index.csv"
+
+
+def get_type_config(type):
+    config_file = sys.path[0] + os.sep + 'conf' + os.sep + type + '.yml'
+    return read_in_yaml(config_file)
 
 def validate_edtf_date(date):
     valid = edtf_validate.valid_edtf.is_valid(date.strip())
@@ -119,12 +190,23 @@ class Row(object):
         self.row_number = row_id
         for key in self.row:
             self.row[key] = self.row[key].strip()
+        self.blank = '' # Hack for workbench needing a 'file' column
 
     def __str__(self):
         string = ''
         for attr, value in self.__dict__.items():
             string += str(attr) +': '+ str(value) + ', '
         return string
+
+    def values(self):
+        values = {}
+        for attr, value in self.__dict__.items():
+            values[attr] = value
+        del values["row"]
+        values.update(self.row)
+        return values
+
+
 
     def check_for_self_in_drupal(self, objects):
         if self.id in objects.keys():
@@ -147,10 +229,12 @@ class Row(object):
                 self.row["FILENAME"] = self.row["FILENAME"] + '.jpg'
 
 
+
 class Object(Row):
     def __init__(self, row, row_id = None):
         super().__init__(row, row_id)
         self.id = self.row["OBJECT"]
+        self.row['id'] = self.id
 
     def validate_structure(self, objects, items):
         # OBJECT ID exists
@@ -194,6 +278,7 @@ class Item(Row):
         super().__init__(row, row_id)
         self.is_draft = False
         self.id = self.row["ITEM"]
+        self.row['id'] = self.id
 
     def check_for_self_in_drafts(self, drafts):
         if self.id in drafts:
@@ -220,7 +305,7 @@ class Item(Row):
         super().validate_fields()
         # TITLE IS MANDATORY
         if self.row["TITLE"] == '':
-            print("ERROR: Line {}. ITEM TITLE NEEDED. No title found for [{}].".format(self.row_number, self.id))
+            print("ERROR: Line {}. Item title is mandatory. No title found for [{}].".format(self.row_number, self.id))
             self.value_issues = True
 
         # CHECK DATES.
@@ -288,8 +373,13 @@ class Analysis(object):
         self.item_error_count = len([ x for x in items.values() if (x.structural_issues or x.value_issues)])
         self.view_error_count = len([ x for x in views.values() if (x.structural_issues or x.value_issues)])
         self.view_has_file = len([ x for x in views.values() if x.has_file])
+        self.new_view_has_file = len([ x for x in views.values() if x.has_file and not x.id_in_drupal])
         self.items_for_thumbs = len([x for x in items.values() if (x.thumbnail_mid and x.id_in_drupal)])
         self.objects_for_thumbs = len([x for x in objects.values() if (x.thumbnail_mid and x.id_in_drupal)])
+        new_objects = set([ x.id for x in objects.values() if not x.id_in_drupal ])
+        self.new_objects_with_items = len(set([ x.parent for x in views.values() if x.has_file and x.parent in new_objects ]))
+
+
 
 
 def print_report(stats):
@@ -310,94 +400,101 @@ def print_report(stats):
     print("Total views: {}".format(stats.view_count_total))
     if stats.view_error_count > 0:
         print("  Views with ERRORS: {}".format(stats.view_error_count))
-    print("  New view data: {}".format(stats.view_count_total - stats.view_existing_total))
+
     print("  Views already in Drupal: {}".format(stats.view_existing_total))
-    print("  Views with files: {}".format(stats.view_has_file))
+    print("  New view data: {}".format(stats.view_count_total - stats.view_existing_total))
+    print("      With files to ingest: {}".format(stats.new_view_has_file))
 
     print("THUMBNAILS available for existing objects:")
     print("  items for thumbs: {}".format(stats.items_for_thumbs))
     print("  objects for thumbs: {}".format(stats.objects_for_thumbs))
 
-def output_objects_file_for_workbench(filename, objects, field_config, views = set()):
+def output_objects_as_csv(filename, object_list, field_config):
     # Write CSV
     with open(filename, 'w') as f:
         writer = csv.DictWriter(f, fieldnames = field_config, extrasaction='ignore')
         writer.writerow(field_config)
-        for obj in objects.values():
-            writer.writerow(obj.row)
-
-    # Write Workbench config
+        for obj in object_list:
+            writer.writerow(obj.values())
 
 def prepare_objects_with_views(all_objects, views, new_objects = True, only_available_files = False):
     max_view_count = 0
+    objects = []
     if new_objects:
-        objects = { key:value for (key, value) in all_objects.items() if value.id_in_drupal == False }
+        temp_object_list = [ obj for obj in all_objects.values() if obj.id_in_drupal == False ]
     else:
-        objects = { key:value for (key, value) in all_objects.items() if value.id_in_drupal != False }
+        temp_object_list = [ obj for obj in all_objects.values() if obj.id_in_drupal == False ]
 
-    for obj_id in objects.keys():
+    for obj in temp_object_list:
         if only_available_files:
-            children = [ x for x in views.values() if x.parent == obj_id and x.has_file and not x.id_in_drupal ]
+            children = [ x for x in views.values() if x.parent == obj.id and x.has_file and not x.id_in_drupal ]
         else:
-            children = [ x for x in views.values() if x.parent == obj_id and not x.id_in_drupal]
+            children = [ x for x in views.values() if x.parent == obj.id and not x.id_in_drupal]
         max_view_count = max([len(children), max_view_count])
-    headers = [ "view_file_" + str(x) for x in range(max_view_count-1)]
+    print("max view count: {}".format(max_view_count))
+    headers = ['file'] + [ "file_" + str(x) for x in range(max_view_count-1)]
+    print(headers)
 
-    for obj_id in list(objects.keys()):
+    for obj in temp_object_list:
         if only_available_files:
-            children = [ x for x in views.values() if x.parent == obj_id and x.has_file and not x.id_in_drupal]
+            children = [ x for x in views.values() if x.parent == obj.id and x.has_file and not x.id_in_drupal]
         else:
-            children = [ x for x in views.values() if x.parent == obj_id and not x.id_in_drupal ]
+            children = [ x for x in views.values() if x.parent == obj.id and not x.id_in_drupal ]
         my_views = [ child.id for child in children ]
-        if len(my_views) == 0:
-            del objects[obj_id]
-            continue
+        if len(my_views) > 0:
+            objects.append(obj)
         diff = max_view_count-len(my_views)
         if diff > 0:
             my_views = my_views + [''] * diff
         # save the views as columns in the row of the object.
-        objects[obj_id].row.update(dict(zip(headers,my_views)))
+        obj.row.update(dict(zip(headers,my_views)))
         # print(obj.row)
     return objects, headers
 
+def output_workbench_config(filename, task, input_csv, input_dir, additional_files = None, **options):
+    write_workbench_config(filename, task, input_csv, input_dir, additional_files, **options)
+    print("Use the following argument for workbench:\n  --config {} --check\n".format( os.path.abspath(filename)))
 
-def write_workbench_config(filename, task, input_csv, input_dir, allow_missing_files = False, additional_files = [], nodes_only = False, creds = {}):
+def write_workbench_config(filename, task, input_csv, input_dir, additional_files = None, **options  ):
+    data = {}
+    data['task'] = task
+    data.update(get_workbench_creds())
+    data['content_type'] = 'archival_object'
+    data['input_csv'] =  os.path.abspath(input_csv)
+    data['input_dir'] =  os.path.abspath(input_dir)
+    data['allow_adding_terms'] = True
+    data.update(options)
+    if additional_files:
+        data['additional_files'] = [ {x: 5} for x in additional_files]
     with(open(filename, 'w')) as f:
-        data = {
-            'host': 'HOST',
-            'username': 'USERNAME',
-            'password': 'PASSWORD',
-        }
-        if len(creds.keys()) > 0:
-            data.update(creds)
-        data['task'] = task
-        data['content_type'] = 'archival_object'
-        data['input_csv'] =  os.path.abspath(input_csv)
-        data['input_dir'] =  os.path.abspath(input_dir)
-        data['nodes_only'] = nodes_only
-        if allow_missing_files:
-            data["allow_missing_files"] = True
-        if additional_files:
-            data['additional_files'] = [ {x: 5} for x in additional_files]
         doc = yaml.dump(data,f, sort_keys = False, default_style = '"')
 
-def get_workbench_creds():
-    filename = 'conf' + os.sep + 'credentials.yml'
-    with open(filename, 'r') as stream:
-        try:
-            creds = yaml.safe_load(stream)
-            return creds
-        except yaml.YAMLError as exc:
-            print(exc)
-            print("NOTE: Credentials in conf\credentials.yml were invalid. You will need to add them yourself!")
-            return {'username': '','password':'','host':''}
-
-
 def main():
-    object_index_filename, media_index_filename, item_index_filename, data_dir, skip_file_check, input_filenames = parse_cmd_line()
+    data_dir, skip_file_check, input_filenames = parse_cmd_line()
 
-    print("..loading info on for existing objects, views, and items.")
-    objects_in_drupal, media_in_drupal, items_in_drupal, drafts_in_drupal = get_drupal_lookups(object_index_filename, media_index_filename, item_index_filename)
+    # TODO: make optional, to process structure of file alone.
+    # Get data about existing objects, media, or files.
+    try:
+        creds = get_workbench_creds()
+        object_index_filename, media_index_filename, item_index_filename = update_csv_indexes(creds)
+        objects_in_drupal, media_in_drupal, items_in_drupal, drafts_in_drupal = get_drupal_lookups(object_index_filename, media_index_filename, item_index_filename)
+    except yaml.YAMLError:
+        print("ERROR: Credentials in conf/credentials.yml is not valid YAML.")
+        exit(1)
+    except InputError as err:
+        print("ERROR: {}".format(err))
+        print("Please ensure your drupal credentials are in conf/credentials.yml.")
+        exit(1)
+    except ConnectionError as err:
+        print("ERROR: {}".format(err))
+        exit(1)
+    except ValueError as err:
+        print("ERROR: {}".format(err))
+        print("Fix inconsistencies in the Drupal data before continuing.")
+        exit(1)
+
+
+    # Check against file in data-dir
 
     objects = {}
     items = {}
@@ -425,6 +522,8 @@ def main():
                     this_row = View(row, row_counter)
                     this_row.validate_structure(objects, items)
                     this_row.validate_fields()
+                    if this_row.value_issues or this_row.structural_issues:
+                        continue
                     if not skip_file_check:
                         this_row.check_for_file(files_in_dir)
                     views[this_row.id] = this_row
@@ -458,39 +557,21 @@ def main():
     stats = Analysis(objects, items, views)
     print_report(stats)
 
-    obj_config  = {'TITLE':   'title',
-                   'OBJECT':   'field_object_identifier',
-                   'DATE':   'field_item_date',
-                   'DESCRIPTION':   'field_description',
-                   'COLLECTION':   'field_parent_collection',
-                   'CREATOR 1':   'field_creator',
-                   'CREATOR 2':   'field_creator_2',
-                   'CREATOR 3':   'field_creator_3',
-                   'DONOR':   'field_donor',
-                   'DIMENSIONS':   'field_dimensions',
-                   'EVENT':   'field_event',
-                   'HISTORICAL NOTE':   'field_historical_note',
-                   'LANGUAGE':   'field__language',
-                   'LOCATION':   'field_location',
-                   'ITEM':   'field_parent_archival_item',
-                   'GROUP':   'field_parent_group',
-                   'PRIMARY TYPE':   'field_primary_type',
-                   'RECIPIENT':   'field_recipient',
-                   'SECONDARY TYPE':   'field_secondary_type',
-                   'SUBJECTS':   'field_subject_1',
-                   'TRANSCRIPT':   'field_transcript',
-                   }
+    obj_config = get_type_config("object")
+    item_config = get_type_config("item")
 
     ## Options
     actions = [
         "OPTIONS AVAILABLE",
-        "1. Add new objects to Drupal (nodes only, without Views)",
-        "2. Add new objects and views to Drupal",
+        "1. Create new objects and views ({} objects)".format(stats.new_objects_with_items),
+        "2. Update 'draft' items ({} items)".format(stats.item_existing_drafts),
+        "4. Update objects' thumbnails.",
+        ""
+        "5. Add metadata-only objects to Drupal (nodes only, without Views)",
         "3. Add available views to existing objects",
         "",
         "//4. Update existing objects' metadata",
-        "5. Update existing Item's metadata ***",
-        "//6. Update existing Views' metadata",
+
         "",
     ]
     ## WHAT DO YOU WANT TO DO?
@@ -498,44 +579,87 @@ def main():
     for line in actions:
         print(line)
     choice = input("What do you want to do? ")
+    if choice == '':
+        exit(0)
     print('-------------------------------------------------------------')
-    if choice == '1':
-        print("1. Add new objects to drupal.\n    - this will ignore objects already in drupal.\n    - this will not add any file (views)")
-        creds = get_workbench_creds()
+    timestamp = str(datetime.datetime.now().timestamp()).replace('.','_')
+    import_config_url = creds['host'] + '/admin/config/development/configuration/single/import'
+    media_add_url = creds['host'] + '/media/add/document'
+    migration_url = creds['host'] + '/admin/structure/migrate/manage/october_27_archive/migrations'
+
+    if choice == "1":
+        print("1. Add new objects and views to Drupal.\n    - this will ignore Objects that don't have views available.\n        - this will likely create new stub (draft) Items.\n    - this will not add thumbnails to objects, those must be added separately.")
+        filename = choice + "-new-objects-and-views.csv"
+        config_filename = choice + "-workbench_conf.yml"
+        filtered_objects, headers = prepare_objects_with_views(objects, views, new_objects=True, only_available_files=True)
+        obj_config.update(dict(zip(headers, headers)))
+        output_objects_as_csv(filename, filtered_objects, obj_config)
+        print("Written file. # of objects: {}".format(len(filtered_objects)))
+        headers.pop(0)
+        output_workbench_config(config_filename, "create", filename, data_dir, additional_files=headers, allow_missing_files=True, nodes_only=False, id_field="field_object_identifier")
+
+    if choice == "2":
+        print("2. Update draft Items created by previous Object ingests. \n    - this will update thumbnails for the Items if available.")
+        config_filename = choice + '-migration-config.yml'
+        filtered_items = [ x for x in items.values() if x.is_draft ]
+        filename = choice + "-update-item-drafts.csv"
+        # Get headers config for items
+        item_config.update({ 'id_in_drupal': 'tid' , "thumbnail_mid": "field_thumbnail"})
+        output_objects_as_csv(filename, filtered_items, item_config)
+        # get default migration yml
+        migration_config  = read_in_yaml('conf' + os.sep + 'base_item_migration.yml')
+        migration_config['label'] += ' - {}'.format(timestamp)
+        migration_config['id'] += '_{}'.format(timestamp)
+        with open(config_filename, 'w') as f:
+            yaml.dump(migration_config, f)
+        print("Please go to {} and upload the file {}".format(media_add_url, filename))
+        print("Then, copy the file URL and correct the source path in the migration config in the file {}".format(config_filename))
+        print("Then, go to {} and upload that migration config.".format(import_config_url))
+        print("Finally, go to {} and execute the {} migration.".format(migration_url, migration_config['label']))
+
+
+
+    if choice == "3":
+        filename = choice + "-update-existing-objects-with-new-views"
+        config_filename = choice+"-workbench_conf.yml"
+        filtered_objects, headers = prepare_objects_with_views(objects, views, new_objects=False, only_available_files=True)
+        obj_config = {'id_in_drupal': 'node_id'}
+        obj_config.update(dict(zip(headers, headers)))
+        output_objects_as_csv(filename, filtered_objects, obj_config)
+        print("Written file. # of objects: {}".format(len(filtered_objects)))
+        write_workbench_config(config_filename, "update", filename, data_dir,  additional_files=headers, allow_missing_files=False, nodes_only=False)
+
+    if choice == "4":
+        filename = choice + "-object-thumbnails.csv"
+        config_filename = choice + '-workbench_conf.yml'
+        filtered_objects = [x for x in objects.values() if (x.thumbnail_mid and x.id_in_drupal)]
+        print(len(filtered_objects))
+        obj_config = {"id_in_drupal": "node_id", "thumbnail_mid": "field_thumbnail" }
+        output_objects_as_csv(filename, filtered_objects, obj_config)
+        output_workbench_config(config_filename, "update", filename, data_dir, nodes_only=True)
+
+    if choice == '5':
+        print("5. Add new objects to drupal.\n    - this will ignore Objects already in drupal.\n    - this will not add any files (views)\n    - this may create new stub (draft) Items.")
+
         if stats.object_error_count > 0:
             print("There are errors in the objects that will cause Workbench to fail. Would you like to correct them now? ")
             go = input("[Y/n]")
             if go in ("yes", "y", "Yes", "Y", ""):
-                print("Dont forget to save changes to the CSV file, not just the xslx. Re-run when ready.")
+                print("Don't forget to save changes to the CSV file, not just the xslx. Re-run when ready.")
                 exit(0)
-        filename = "1-new-objects.csv"
-        config_filename = "1-workbench_conf.yml"
-        filtered_objects = { obj_id:obj for (obj_id, obj) in objects.items() if obj.id_in_drupal == False }
-        output_objects_file_for_workbench(filename, filtered_objects, obj_config)
-        write_workbench_config(config_filename, "create", filename, data_dir,nodes_only = True, creds=creds)
-        print("\nCreating migration file for {} objects.\n\nUse the following argument for workbench:\n  --config {} --check\n".format(len(filtered_objects.keys()), os.path.abspath(config_filename)))
+        filename = choice + "-new-objects.csv"
+        config_filename = choice + "-workbench_conf.yml"
+        filtered_objects = [ obj for obj in objects.values() if obj.id_in_drupal == False ]
+        obj_config['blank'] = 'file'
+        output_objects_as_csv(filename, filtered_objects, obj_config)
+        print("\nCreating migration file for {} objects.\n\n".format(len(filtered_objects)))
+        output_workbench_config(config_filename, "create", filename, data_dir, nodes_only=True, id_field="field_object_identifier")
 
-    if choice == "2":
-        filename = "2-new-objects-and-views.csv"
-        filtered_objects, headers = prepare_objects_with_views(objects, views, new_objects=True)
-        obj_config.update(dict(zip(headers, headers)))
-        output_objects_file_for_workbench(filename, filtered_objects, obj_config)
-        print("Written file. # of objects: {}".format(len(filtered_objects.keys())))
-        write_workbench_config("2-workbench_conf.yml", "create", filename, data_dir, allow_missing_files=True, additional_files=headers,nodes_only=False)
-
-    if choice == "3":
-        filename = "3-update-existing-objects-with-new-views"
-        filtered_objects, headers = prepare_objects_with_views(objects, views, new_objects=False, only_available_files=True)
-        obj_config = {'id_in_drupal': 'node_id'}
-        obj_config.update(dict(zip(headers, headers)))
-        output_objects_file_for_workbench(filename, filtered_objects, obj_config)
-        print("Written file. # of objects: {}".format(len(filtered_objects.keys())))
-        write_workbench_config("3-workbench_conf.yml", "update", filename, data_dir, allow_missing_files=False, additional_files=headers, nodes_only=False)
 
     if choice == "i":
         needle = input("Investigating. Enter an id.")
         if needle in objects.keys():
-            print(objects[needle])
+            print(objects[needle].values())
         elif needle in items.keys():
             print(items[needle])
         elif needle in views.keys():

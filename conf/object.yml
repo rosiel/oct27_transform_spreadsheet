@@ -1,30 +1,22 @@
-name: object
-row_type: object
-version: 0.02
-fields:
-  title: TITLE
-  id: OBJECT
-  field_item_date: 'DATE'
-  field_description: DESCRIPTION
-  field_parent_collection: COLLECTION
-  field_creator: 'CREATOR 1'
-  field_creator_2: 'CREATOR 2'
-  field_creator_3: 'CREATOR 3'
-  field_donor: 'DONOR'
-  field_dimensions: 'DIMENSIONS'
-  field_event: 'EVENT'
-  field_historical_note: 'HISTORICAL NOTE'
-  field__language: 'LANGUAGE'
-  field_location: 'LOCATION'
-  field_object_identifier: 'OBJECT'
-  field_parent_archival_item: 'ITEM'
-  field_parent_collection: 'COLLECTION'
-  field_parent_group: 'GROUP'
-  field_primary_type: 'PRIMARY TYPE'
-  field_recipient: 'RECIPIENT'
-  field_secondary_type: 'SECONDARY TYPE'
-  field_subject_1: 'SUBJECTS'
-  field_transcript: 'TRANSCRIPT'
-  #field_archive_it_collection_id
-  #field_archive_it_url
+TITLE:  'title'
+OBJECT:  'field_object_identifier'
+DATE:  'field_item_date'
+DESCRIPTION:  'field_description'
+COLLECTION:  'field_parent_collection'
+CREATOR 1:  'field_creator'
+CREATOR 2:  'field_creator_2'
+CREATOR 3:  'field_creator_3'
+DONOR:  'field_donor'
+DIMENSIONS:  'field_dimensions'
+EVENT:  'field_event'
+HISTORICAL NOTE:  'field_historical_note'
+LANGUAGE:  'field__language'
+LOCATION:  'field_location'
+ITEM:  'field_parent_archival_item'
+GROUP:  'field_parent_group'
+PRIMARY TYPE:  'field_primary_type'
+RECIPIENT:  'field_recipient'
+SECONDARY TYPE:  'field_secondary_type'
+SUBJECTS:  'field_subject_1'
+TRANSCRIPT:  'field_transcript'
 

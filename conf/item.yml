@@ -1,21 +1,18 @@
-name: item
-row_type: item
-version: 0.02
-fields:
-  name: 'TITLE'
-  field_item_id: ITEM
-  field_date: 'DATE'
-  field_creator_1: 'CREATOR 1'
-  field_creator_2: 'CREATOR 2'
-  field_creator_3: 'CREATOR 3'
-  field__item_donor: DONOR
-  field_event: 'EVENT'
-  field_historical_note: 'HISTORICAL NOTE'
-  field_description: DESCRIPTION
-  field_language: 'LANGUAGE'
-  field_location: 'LOCATION'
-  field_collection: 'COLLECTION'
-  field_parent_group: 'GROUP'
-  field_primary_type: 'PRIMARY TYPE'
-  field_secondary_type: 'SECONDARY TYPE'
-  field_subject: SUBJECTS
+TITLE: 'name'
+ITEM: 'field_item_id'
+DATE: 'field_date'
+CREATOR 1: 'field_creator_1'
+CREATOR 2: 'field_creator_2'
+CREATOR 3: 'field_creator_3'
+DONOR: 'field__item_donor'
+EVENT: 'field_event'
+HISTORICAL NOTE: 'field_historical_note'
+DESCRIPTION: 'field_description'
+LANGUAGE: 'field_language'
+LOCATION: 'field_location'
+COLLECTION: 'field_collection'
+GROUP: 'field_parent_group'
+PRIMARY TYPE: 'field_primary_type'
+SECONDARY TYPE: 'field_secondary_type'
+SUBJECTS: 'field_subject'
+
