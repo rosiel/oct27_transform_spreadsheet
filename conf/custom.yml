@@ -1,7 +1,0 @@
-name: custom
-row_type: object
-version: 0.02
-fields:
-  field_object_identifier: 'OBJECT'
-  item_identifier: 'ITEM'
-

@@ -57,8 +57,7 @@ def read_in_dict_file(filename, key_col, val_col, silent = False):
                 key_errors.add("blanks")
                 continue
             if row[key_col] in data_dict.keys():
-                if not silent:
-                    print("NOTICE: Duplicate entries for {}: {} in file [{}]. {}: {}, {}".format(key_col, row[key_col], filename, val_col, data_dict[row[key_col]], row[val_col]))
+                print("NOTICE: Duplicate entries for {}: {} in file [{}]. {}: {}, {}".format(key_col, row[key_col], filename, val_col, data_dict[row[key_col]], row[val_col]))
                 key_errors.add("dupes")
             data_dict[row[key_col]] = row[val_col]
     return data_dict, key_errors
@@ -707,9 +706,8 @@ def main():
         if choice == '':
             exit(0)
         print('-------------------------------------------------------------')
-        timestamp = str(datetime.datetime.now().timestamp()).replace('.','_')
-        import_config_url = creds['host'] + '/admin/config/development/configuration/single/import'
-        media_add_url = creds['host'] + '/media/add/document'
+        items_feed = creds['host'] + "/feed/1/edit"
+        names_feed = creds['host'] + '/feed/3/edit'
         migration_url = creds['host'] + '/admin/structure/migrate/manage/october_27_archive/migrations'
         feeds = False
 
@@ -734,10 +732,10 @@ def main():
             print(choice + ". Provide thumbnails for objects missing thumbnails.")
             filename = choice + "-object-thumbnails.csv"
             config_filename = choice + '-workbench_conf.yml'
-            filtered_objects = [x for x in objects.values() if (x.thumbnail_mid and x.id_in_drupal)]
-            print(len(filtered_objects))
+            filtered_objects = [x for x in objects.values() if (x.thumbnail_mid and x.id_in_drupal and x.is_draft)]
             obj_config = {"id_in_drupal": "node_id", "thumbnail_mid": "field_thumbnail" }
             output_objects_as_csv(filename, filtered_objects, obj_config)
+            print("Written file. # of objects: {}\n".format(len(filtered_objects)))
             output_workbench_config(config_filename, "update", filename, data_dir, nodes_only=True)
 
         if choice == "3":
@@ -748,23 +746,8 @@ def main():
             item_config.update({ 'id_in_drupal': 'tid' , "thumbnail_mid": "field_thumbnail"})
             output_objects_as_csv(filename, filtered_items, item_config)
 
-            # Write out migration file.
-            config_filename = choice + '-migration-config.yml'
-            migration_config  = read_in_yaml('conf' + os.sep + 'base_item_migration.yml')
-            migration_config['label'] += ' - {}'.format(timestamp)
-            migration_config['id'] += '_{}'.format(timestamp)
-            with open(config_filename, 'w') as f:
-                yaml.dump(migration_config, f)
-
             print("\n  Item file: {}".format(filename))
-            print("  Migration file: {}\n".format(config_filename))
-            if feeds:
-                print("Please go to {} and replace the file with {}".format("https://sandbox.october27archive.org/feed/3/edit", filename))
-            else:
-                print("Please go to {} and upload the file {}".format(media_add_url, filename))
-                print("Then, copy the file URL and correct the source path in the migration config file ({})".format(config_filename))
-                print("Then, go to {} and upload that migration config.".format(import_config_url))
-                print("Finally, go to {} and execute the \"{}\" migration.".format(migration_url, migration_config['label']))
+            print("Please go to {} and replace the file with {}".format(items_feed, filename))
 
         if choice == "4":
             print(choice + " - Updating existing names that are drafts (missing sort field).")
@@ -775,20 +758,9 @@ def main():
             name_config = {'id_in_drupal': 'tid', 'NAME': 'name', 'SORT KEY': 'field_sorting_name'}
             output_objects_as_csv(filename, filtered_names, name_config)
 
-            # Write out migration file.
-            config_filename = choice + '-migration-config.yml'
-            migration_config  = read_in_yaml('conf' + os.sep + 'base_name_migration.yml')
-            migration_config['label'] += ' - {}'.format(timestamp)
-            migration_config['id'] += '_{}'.format(timestamp)
-            with open(config_filename, 'w') as f:
-                yaml.dump(migration_config, f)
+            print("\n  Names CSV file: {}\n".format(filename))
+            print("Please go to {} and replace the file with {}".format(names_feed, filename))
 
-            print("\n  Names CSV file: {}".format(filename))
-            print("  Migration file: {}\n".format(config_filename))
-            print("Please go to {} and upload the file {}".format(media_add_url, filename))
-            print("Then, copy the file URL and correct the source path in the migration config file ({})".format(config_filename))
-            print("Then, go to {} and upload that migration config.".format(import_config_url))
-            print("Finally, go to {} and execute the \"{}\" migration.".format(migration_url, migration_config['label']))
 
         if choice == '5':
             print("5. Add new objects to drupal.\n    - this will ignore Objects already in drupal.\n    - this will not add any files (views)\n    - this may create new stub (draft) Items.")

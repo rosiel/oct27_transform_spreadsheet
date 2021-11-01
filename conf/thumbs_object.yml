@@ -1,6 +1,0 @@
-name: thumbs_objects
-row_type: object
-version: 0.02
-fields:
-  object_id: OBJECT
-  thumbnail_file: FILENAME
