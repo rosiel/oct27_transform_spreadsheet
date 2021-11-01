@@ -23,7 +23,7 @@ process:
   field_thumbnail:
     -
       plugin: skip_on_empty
-      source: mid
+      source: field_thumbnail
       method: process
     -
       plugin: entity_lookup 

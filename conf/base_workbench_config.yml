@@ -1,0 +1,9 @@
+content_type: 'archival_object'
+allow_adding_terms: True
+media_types:
+  - image: ["png", "gif", "jpg", "jpeg"]
+  - document: ["pdf", "doc", "docx", "ppt", "pptx"]
+  - file: ["tif", "tiff", "jp2", "zip", "tar"]
+  - audio: ["mp3", "wav", "aac", "m4a"]
+  - video: ["mp4"]
+  - extracted_text: ["txt"]
