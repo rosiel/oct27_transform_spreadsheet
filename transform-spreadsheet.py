@@ -163,7 +163,6 @@ def update_csv_indexes(creds):
     """
 
     :param creds: workbench credentials dictionary containing username, password, host
-    :param path: path to a view that downloads csv
     :return:
     """
     types = ['item','object','media','name']
@@ -247,11 +246,15 @@ class Row(object):
             return False
 
     def validate_fields(self):
+
+        # Check redacted.
+        if self.row['REDACT'] != '':
+            print("WARNING: Line {}. REDACT is not empty. Delete this row from the spreadsheet before proceeding.".format(self.row_number))
+            self.value_issues = True
         # HACK FOR FILES WITHOUT EXTENSIONS
         if len(self.row["FILENAME"]) > 4:
             if self.row["FILENAME"][-4] != '.':
                 self.row["FILENAME"] = self.row["FILENAME"] + '.jpg'
-
 
 
 class Object(Row):
@@ -301,6 +304,7 @@ class Object(Row):
             if not valid:
                 print("ERROR: Line {}. BAD DATE. [{}] is not a valid EDTF date.".format(self.row_number, date))
                 self.value_issues = True
+
 
 
 class Item(Row):
