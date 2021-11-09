@@ -1,5 +1,7 @@
 content_type: 'archival_object'
 allow_adding_terms: True
+media_use_tid: 5
+use_node_title_for_media_title: False
 media_types:
   - image: ["png", "gif", "jpg", "jpeg"]
   - document: ["pdf", "doc", "docx", "ppt", "pptx"]
