@@ -445,7 +445,7 @@ class Analysis(object):
         self.objects_for_thumbs = len([x for x in objects.values() if (x.thumbnail_mid and x.id_in_drupal and x.is_draft)])
         new_objects = set([ x.id for x in objects.values() if not x.id_in_drupal ])
         self.new_objects_with_items = len(set([ x.parent for x in views.values() if x.has_file and x.parent in new_objects ]))
-
+        self.new_views_for_existing_objects = len([ x for x in views.values() if x.has_file and x.parent_id_in_drupal != False and not x.id_in_drupal ])
 
 
 
@@ -692,7 +692,7 @@ def main():
             "4. Update 'draft' names ({} names)".format(stats.name_existing_drafts),
             "",
             "5. Add metadata-only objects to Drupal (nodes only, without Views) ({} objects)".format(stats.object_count_total - stats.object_existing_total),
-            "6. Add available views to existing objects",
+            "6. Add available views to existing objects ({} views)".format(stats.new_views_for_existing_objects),
             "7. Preview names in spreadsheet.",
             "",
             "i. investigate an object by its id.",
