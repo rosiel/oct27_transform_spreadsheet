@@ -382,6 +382,7 @@ class View(Row):
             matches = [ x for x in files if x.startswith(root) ]
             if len(matches) == 1:
                 self.row["FILENAME"] = self.id = matches[0]
+                self.has_file = True
             elif len(matches) > 1:
                 self.value_issues = True
                 print("ERROR: Row {}. Multiple matching files found in data dir: {} ".format(str(self.row_number),str(matches)))
