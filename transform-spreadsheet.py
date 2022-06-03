@@ -120,15 +120,17 @@ def get_drupal_lookups(objects_file, media_file, item_file, name_file, host = ''
 
 
     if len(key_errors) > 0 or len(media_key_errors) > 0 or ('dupes' in item_key_errors) or len(dupes) > 0 or len(name_key_errors) > 0:
-        raise ValueError("Drupal data contains inconsistencies. Identifiers should be unique.")
-    else:
-        print("OK: Site contains {} objects.".format(len(objects)))
-        print("OK: Site contains {} objects missing thumbnails.".format(len(object_drafts)))
-        print("OK: Site contains {} media.".format(len(media)))
-        print("OK: Site contains {} items.".format(len(items)))
-        print("OK: Site contains {} draft items.".format(len(drafts)))
-        print("OK: Site contains {} names.".format(len(names)))
-        print("OK: Site contains {} draft names.".format(len(name_drafts)))
+        choice = input("There are errors in the Drupal data. All objects/items/views should have unique identifiers. Would you like to continue anyway? (This may cause further inconsistencies)\n[yes/No]")
+        if choice not in ['yes', 'Yes','Y','y']:
+            raise ValueError("Drupal data contains inconsistencies.")
+    
+    print("Site contains {} objects.".format(len(objects)))
+    print("Site contains {} objects missing thumbnails.".format(len(object_drafts)))
+    print("Site contains {} media.".format(len(media)))
+    print("Site contains {} items.".format(len(items)))
+    print("Site contains {} draft items.".format(len(drafts)))
+    print("Site contains {} names.".format(len(names)))
+    print("Site contains {} draft names.".format(len(name_drafts)))
 
     return objects, media, items, drafts, names, name_drafts, object_drafts
 
@@ -448,8 +450,6 @@ class Analysis(object):
         self.new_objects_with_items = len(set([ x.parent for x in views.values() if x.has_file and x.parent in new_objects ]))
         self.new_views_for_existing_objects = len([ x for x in views.values() if x.has_file and x.parent_id_in_drupal != False and not x.id_in_drupal ])
 
-
-
 def print_report(stats):
 
     print("Total objects in spreadsheet: {}".format(stats.object_count_total))
@@ -613,7 +613,6 @@ def main():
         exit(1)
     except ValueError as err:
         print("ERROR: {}".format(err))
-        print("Fix inconsistencies in the Drupal data before continuing.")
         exit(1)
     else:
         objects = {}
