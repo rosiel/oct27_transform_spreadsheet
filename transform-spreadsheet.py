@@ -241,11 +241,22 @@ class Row(object):
             self.parent_id_in_drupal = things_in_drupal[self.parent]
 
     def check_for_thumbnail(self, media):
-        if self.row["FILENAME"] in media.keys():
+        if self.row['FILENAME'] in media.keys():
             self.thumbnail_mid = media[self.row["FILENAME"]]
             return True
         else:
-            return False
+            # Check ignoring extensions
+            root = os.path.splitext(self.row["FILENAME"])[0]
+            matches = [media[x] for x in media.keys() if x.startswith(root)]
+            if len(matches) == 1:
+                self.thumbnail_mid = matches[0]
+                return True
+            elif len(matches) > 1:
+                self.value_issues = True
+                print("ERROR: Row {}. Multiple matching thumbnails found in drupal: {} ".format(str(self.row_number),str(matches)))
+                return False
+            else:
+                return False
 
     def validate_fields(self):
 
@@ -253,10 +264,10 @@ class Row(object):
         if self.row['REDACT'] != '':
             print("WARNING: Line {}. REDACT is not empty. Delete this row from the spreadsheet before proceeding.".format(self.row_number))
             self.value_issues = True
-        # HACK FOR FILES WITHOUT EXTENSIONS
-        if len(self.row["FILENAME"]) > 4:
-            if self.row["FILENAME"][-4] != '.':
-                self.row["FILENAME"] = self.row["FILENAME"] + '.jpg'
+        # HACK FOR FILES WITHOUT EXTENSIONS - deprecated
+        # if len(self.row["FILENAME"]) > 4:
+        #     if self.row["FILENAME"][-4] != '.':
+        #         self.row["FILENAME"] = self.row["FILENAME"] + '.jpg'
 
 
 class Object(Row):
