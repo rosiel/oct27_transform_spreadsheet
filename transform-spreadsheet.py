@@ -244,9 +244,12 @@ class Row(object):
         if self.row['FILENAME'] in media.keys():
             self.thumbnail_mid = media[self.row["FILENAME"]]
             return True
-        else:
-            # Check ignoring extensions
-            root = os.path.splitext(self.row["FILENAME"])[0]
+        elif len(self.row['FILENAME']) > 3:
+            # Remove extension if present
+            (root, ext) = os.path.splitext(self.row["FILENAME"])
+            if len(ext) > 4: # That's not a file extension, that's a file name with a period in it.
+              root = self.row["FILENAME"]
+
             matches = [media[x] for x in media.keys() if x.startswith(root)]
             if len(matches) == 1:
                 self.thumbnail_mid = matches[0]
@@ -257,6 +260,8 @@ class Row(object):
                 return False
             else:
                 return False
+        else:
+            return False
 
     def validate_fields(self):
 
