@@ -19,4 +19,5 @@ RECIPIENT:  'field_recipient'
 SECONDARY TYPE:  'field_secondary_type'
 SUBJECTS:  'field_subject_1'
 TRANSCRIPT:  'field_transcript'
-
+USE AND REPRODUCTION: 'field_use_and_reproduction'
+PHOTO CREDIT: 'field_photo_credit'

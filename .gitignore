@@ -5,3 +5,5 @@
 data/*
 [1-9]-*
 workbench.log
+rollback.yml
+
