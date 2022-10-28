@@ -698,6 +698,7 @@ def main():
 
         obj_config = get_type_config("object")
         item_config = get_type_config("item")
+        metadata_config = get_type_config("metadata")
 
         ## Options
         actions = [
@@ -710,6 +711,7 @@ def main():
             "5. Add metadata-only objects to Drupal (nodes only, without Views) ({} objects)".format(stats.object_count_total - stats.object_existing_total),
             "6. Add available views to existing objects ({} views)".format(stats.new_views_for_existing_objects),
             "7. Preview names in spreadsheet.",
+            "8. Reingest select metadata on existing objects ({} objects)".format(stats.object_existing_total),
             "",
             "i. investigate an object by its id.",
             "<enter> to exit.",
@@ -721,7 +723,7 @@ def main():
 
         while True:
             choice = input("What do you want to do? ")
-            if choice in (['1','2','3','4','5', '6', '7','i','']):
+            if choice in (['1','2','3','4','5', '6', '7','8','i','']):
                 break
         if choice == '':
             exit(0)
@@ -820,6 +822,20 @@ def main():
             output_objects_as_csv(filename, filtered_names, obj_config)
             print("Written file. # of names: {}\n".format(len(filtered_names)))
             print("\nPlease review the file: {}".format(filename))
+
+        if choice == "8":
+            print("8. Reingest select metadata on existing objects.\n  This will reingest only the fields in conf/metadata.yml. Compare with the full list of fields in conf/object.yml.")
+
+            # Write CSV file.
+            filename = choice + "-reingest-object-metadata.csv"
+            filtered_objects = [ obj for obj in objects.values() if obj.id_in_drupal != False ]
+            metadata_config.update({'id_in_drupal': 'node_id'})
+            output_objects_as_csv(filename, filtered_objects, metadata_config)
+            print("\nCreating migration file for {} objects.\n\n".format(len(filtered_objects)))
+
+            # Write workbench config
+            config_filename = choice + "-workbench_conf.yml"
+            output_workbench_config(config_filename, "update", filename, data_dir, nodes_only=True)
 
         if choice == "i":
             needle = input("Investigating. Enter an id.")
